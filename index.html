@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Menú de la Semana</title>
+<meta name="theme-color" content="#2c6a39">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-512.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Menú">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+<link rel="stylesheet" href="styles.css">
+<style>
+  html, body { height: 100%; margin: 0; }
+  :root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+
+<div id="loginView" class="wrap login" hidden>
+  <div class="login-card">
+    <h1>Menú de la semana</h1>
+    <p id="loginIntro">Escribe tu email y te enviaremos un enlace para entrar. Sin contraseñas.</p>
+    <form id="loginForm">
+      <input class="field" id="loginEmail" type="email" autocomplete="email" inputmode="email" placeholder="tu@email.com" required>
+      <button class="btn primary" type="submit" id="loginBtn">Enviarme el enlace</button>
+    </form>
+    <p id="loginMsg" aria-live="polite"></p>
+  </div>
+</div>
+
+<div id="appView" hidden>
+<header class="top">
+  <div class="wrap">
+    <div class="brand" id="brand">Menú de la semana<small id="brandSub">Plan de comidas y lista de la compra</small></div>
+    <div class="weeknav">
+      <button class="icon-btn" id="prevWeek" aria-label="Semana anterior">‹</button>
+      <div class="lbl" id="weekLabel">…</div>
+      <button class="icon-btn" id="nextWeek" aria-label="Semana siguiente">›</button>
+      <button class="btn" id="thisWeek" style="padding:6px 12px">Hoy</button>
+      <button class="btn" id="familyBtn" style="padding:6px 12px">Familia</button>
+    </div>
+    <nav class="tabs" role="tablist">
+      <button class="tab" role="tab" data-tab="menu" id="tab-menu">Menú</button>
+      <button class="tab" role="tab" data-tab="compra" id="tab-compra">Compra<span class="n" id="nCompra"></span></button>
+      <button class="tab" role="tab" data-tab="recetas" id="tab-recetas">Recetas<span class="n" id="nRecetas"></span></button>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+    <div class="banner" id="banner" hidden></div>
+
+    <section id="v-menu" hidden>
+      <div class="toolbar">
+        <span class="grow" id="menuInfo">Toca un hueco para elegir el plato.</span>
+        <button class="btn" id="copyPrev">Copiar la semana anterior</button>
+        <button class="btn danger" id="clearWeek">Vaciar menú</button>
+      </div>
+      <div class="days" id="menuGrid"></div>
+    </section>
+
+    <section id="v-compra" hidden>
+      <div class="shop-head">
+        <div class="stepper">Para <b id="personas">4</b> personas
+          <button class="icon-btn" id="perMenos" aria-label="Una persona menos">−</button>
+          <button class="icon-btn" id="perMas" aria-label="Una persona más">+</button>
+        </div>
+        <span style="margin-right:auto;color:var(--muted)" id="compraInfo"></span>
+        <button class="btn" id="uncheckAll">Desmarcar todo</button>
+        <button class="btn primary" id="copyList">Copiar lista</button>
+      </div>
+      <div class="progress"><i id="progressBar" style="width:0%"></i></div>
+      <form class="addx" id="addExtra">
+        <input class="field" id="extraNombre" placeholder="Añadir algo más: papel de cocina, detergente…" autocomplete="off">
+        <select class="field" id="extraSeccion"></select>
+        <button class="btn primary" type="submit">Añadir</button>
+      </form>
+      <div id="listaCompra"></div>
+    </section>
+
+    <section id="v-recetas" hidden>
+      <div class="toolbar">
+        <input class="field rec-search" id="recetaBuscar" placeholder="Buscar receta o ingrediente" autocomplete="off">
+        <button class="btn primary" id="nuevaReceta">Nueva receta</button>
+      </div>
+      <div id="listaRecetas"></div>
+    </section>
+  </div>
+</main>
+</div>
+
+<div class="sheet" id="sheet" hidden><div class="sheet-card" id="sheetCard" role="dialog" aria-modal="true"></div></div>
+<div class="toast" id="toast" hidden></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
