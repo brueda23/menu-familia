@@ -314,6 +314,82 @@ $("#clearWeek").addEventListener("click", e => armButton(e.currentTarget, "Pulsa
   toast("Menú vaciado");
 }));
 
+/* ---------- generar menú automático ---------- */
+function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+/* Reparte recetas en los huecos elegidos. Puntúa cada candidata (menos es mejor):
+   ya usada esta semana, repetida en el mismo día, igual que ayer o usada la semana pasada. */
+function generarMenu(base, comidas, evitar, antes = {}) {
+  const nuevo = {}, usadas = new Map(), sinReceta = [];
+  const get = slot => base[slot] || nuevo[slot];
+  for (const v of Object.values(base)) if (v && v.r) usadas.set(v.r, (usadas.get(v.r) || 0) + 1);
+  for (const k of comidas) {
+    const pool = [...state.recetas.values()].filter(r => (r.tipos || []).includes(k));
+    if (!pool.length) { sinReceta.push(k); continue; }
+    for (let d = 0; d < 7; d++) {
+      const slot = d + "-" + k;
+      if (base[slot]) continue;
+      const mismoDia = new Set(COMIDAS.map(([c]) => (get(d + "-" + c) || {}).r).filter(Boolean));
+      const ayer = (get((d - 1) + "-" + k) || {}).r;
+      const elegido = shuffle(pool.slice())
+        .map(r => ({ r, s: (usadas.get(r.id) || 0) * 10 + (mismoDia.has(r.id) ? 20 : 0) + (r.id === ayer ? 5 : 0) + (evitar.has(r.id) ? 3 : 0) + ((antes[slot] || {}).r === r.id ? 6 : 0) + Math.random() * 2 }))
+        .sort((a, b) => a.s - b.s)[0].r;
+      nuevo[slot] = { r: elegido.id };
+      usadas.set(elegido.id, (usadas.get(elegido.id) || 0) + 1);
+    }
+  }
+  return { nuevo, sinReceta };
+}
+$("#generar").addEventListener("click", openGenerar);
+function openGenerar() {
+  if (!state.recetas.size) { toast("Primero añade algunas recetas en la pestaña Recetas."); return; }
+  openSheet(card => {
+    const checks = h("div", { class: "checks" }, COMIDAS.map(([k, l]) => h("label", {},
+      h("input", { type: "checkbox", id: "gen-" + k, value: k, checked: (k === "comida" || k === "cena") || null }), l)));
+    const modo = h("div", { class: "checks" },
+      h("label", {}, h("input", { type: "radio", name: "genModo", id: "gen-huecos", value: "huecos", checked: true }), "Solo los huecos vacíos"),
+      h("label", {}, h("input", { type: "radio", name: "genModo", id: "gen-todo", value: "todo" }), "Rehacer (sustituye lo que haya)"));
+    const evitar = h("label", { style: "display:flex;gap:8px;align-items:center" },
+      h("input", { type: "checkbox", id: "gen-evitar", checked: true, style: "accent-color:var(--accent)" }), "Evitar los platos de la semana pasada");
+    const go = h("button", { class: "btn primary", type: "button" }, "Generar");
+    go.addEventListener("click", async () => {
+      const comidas = [...checks.querySelectorAll("input:checked")].map(x => x.value);
+      if (!comidas.length) { toast("Elige al menos una comida"); return; }
+      const rehacer = modo.querySelector("input:checked").value === "todo";
+      go.disabled = true; go.textContent = "Generando…";
+      let prev = new Set();
+      if (evitar.querySelector("input").checked) {
+        const { data } = await sb.from("menu_slots").select("receta_id").eq("lunes", weekKey(addDays(state.week, -7)));
+        prev = new Set((data || []).map(r => r.receta_id).filter(Boolean));
+      }
+      const antes = { ...W().comidas };
+      const base = { ...antes };
+      const borrar = rehacer ? Object.keys(base).filter(s => comidas.includes(s.split("-")[1])) : [];
+      for (const s of borrar) delete base[s];
+      const { nuevo, sinReceta } = generarMenu(base, comidas, prev, antes);
+      const n = Object.keys(nuevo).length;
+      closeSheet();
+      if (!n && !borrar.length) {
+        toast(sinReceta.length === comidas.length ? "No hay recetas marcadas para esas comidas." : "No quedaban huecos vacíos.");
+        return;
+      }
+      const lunes = LK();
+      state.weekDoc.comidas = { ...base, ...nuevo }; renderAll();
+      if (borrar.length) await write(sb.from("menu_slots").delete().eq("lunes", lunes).in("slot", borrar), loadWeek);
+      if (n) await write(sb.from("menu_slots").upsert(Object.entries(nuevo).map(([slot, v]) => ({ hogar_id: state.hogar.id, lunes, slot, receta_id: v.r, texto: null }))), loadWeek);
+      const falta = sinReceta.map(k => COMIDAS.find(c => c[0] === k)[1].toLowerCase());
+      toast(`${n} platos generados` + (falta.length ? `. Sin recetas de ${falta.join(" ni ")}.` : ". Toca cualquiera para cambiarlo."));
+    });
+    card.append(
+      h("div", { class: "sheet-h" }, h("h2", { text: "Generar menú" }), h("button", { class: "icon-btn", "aria-label": "Cerrar", onclick: closeSheet }, "×")),
+      h("p", { style: "margin:0;color:var(--muted)", text: `Reparte vuestras recetas en la semana del ${weekLabel(state.week)}, sin repetir platos mientras haya alternativas. Usa el campo «Sirve para» de cada receta.` }),
+      h("div", { class: "form-grid" }, h("span", { class: "lbl-sm", text: "Qué comidas" }), checks),
+      h("div", { class: "form-grid" }, h("span", { class: "lbl-sm", text: "Cómo" }), modo),
+      evitar,
+      h("div", { class: "sheet-foot" }, h("button", { class: "btn", type: "button", onclick: closeSheet }, "Cancelar"), go)
+    );
+  });
+}
+
 /* ---------- acciones: compra ---------- */
 function toggleItem(key, on) {
   const lunes = LK();
